@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demuze — Offline Stem Separator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ══════════════════════════════════════════════
+       TOKENS
+    ══════════════════════════════════════════════ */
+    :root {
+      --ink:      #0c0c0e;
+      --paper:    #f5f0e8;
+      --cream:    #ede8dc;
+      --warm:     #d9d2c3;
+      --rule:     #c8bfae;
+      --muted:    #8a8070;
+      --punch:    #e8380d;       /* tomato red — the one vivid accent */
+      --punch-hi: #ff5535;
+      --green:    #2d7a4f;
+      --amber:    #c88a00;
+      --mono:     'DM Mono', monospace;
+      --serif:    'Instrument Serif', serif;
+      --display:  'Bebas Neue', sans-serif;
+      --r:        4px;
+    }
+
+    /* ══════════════════════════════════════════════
+       RESET
+    ══════════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; font-size: 16px; }
+
+    body {
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--mono);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Halftone grain overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Crect width='1' height='1' fill='%23000' opacity='.04'/%3E%3C/svg%3E");
+      background-size: 4px 4px;
+    }
+
+    /* ══════════════════════════════════════════════
+       LAYOUT
+    ══════════════════════════════════════════════ */
+    .shell {
+      position: relative; z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 28px 100px;
+    }
+
+    /* ══════════════════════════════════════════════
+       MASTHEAD
+    ══════════════════════════════════════════════ */
+    .masthead {
+      border-bottom: 3px solid var(--ink);
+      padding: 28px 0 20px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+
+    .brand-name {
+      font-family: var(--display);
+      font-size: clamp(52px, 9vw, 88px);
+      line-height: 0.85;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+    }
+
+    .brand-tag {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .masthead-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--warm);
+      transition: background 0.2s;
+    }
+    .status-dot.ok   { background: var(--green); box-shadow: 0 0 0 2px rgba(45,122,79,.2); }
+    .status-dot.fail { background: var(--punch); box-shadow: 0 0 0 2px rgba(232,56,13,.2); }
+
+    .offline-badge {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--ink);
+      color: var(--paper);
+      padding: 3px 9px;
+      border-radius: 2px;
+    }
+
+    /* ── Sub-rule band ── */
+    .sub-rule {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--rule);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* ══════════════════════════════════════════════
+       HERO INTRO
+    ══════════════════════════════════════════════ */
+    .hero-intro {
+      display: grid;
+      grid-template-columns: 1fr 1px 1fr;
+      gap: 0;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 36px;
+    }
+
+    .hero-col {
+      padding: 32px 28px 32px 0;
+    }
+    .hero-col:last-child {
+      padding: 32px 0 32px 28px;
+    }
+    .hero-divider { background: var(--rule); }
+
+    .hero-headline {
+      font-family: var(--display);
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+      letter-spacing: 0.03em;
+      margin-bottom: 14px;
+    }
+
+    .hero-body {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .pill {
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border: 1px solid var(--rule);
+      padding: 4px 10px;
+      border-radius: 2px;
+      color: var(--muted);
+    }
+    .pill.hot {
+      border-color: var(--punch);
+      color: var(--punch);
+    }
+
+    /* ══════════════════════════════════════════════
+       SECTION LABELS
+    ══════════════════════════════════════════════ */
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--rule);
+    }
+
+    /* ══════════════════════════════════════════════
+       DROP ZONE
+    ══════════════════════════════════════════════ */
+    .upload-wrap {
+      margin-bottom: 32px;
+    }
+
+    .drop-zone {
+      position: relative;
+      border: 2px dashed var(--rule);
+      border-radius: var(--r);
+      padding: 60px 40px;
+      text-align: center;
+      cursor: pointer;
+      background: var(--cream);
+      transition: border-color 0.2s, background 0.2s;
+      overflow: hidden;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--ink);
+      background: var(--warm);
+    }
+    .drop-zone.has-file {
+      border-style: solid;
+      border-color: var(--green);
+      background: rgba(45,122,79,.04);
+    }
+    .drop-zone input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+
+    .drop-icon {
+      font-size: 40px;
+      display: block;
+      margin-bottom: 16px;
+      transition: transform 0.2s;
+    }
+    .drop-zone:hover .drop-icon { transform: translateY(-4px); }
+
+    .drop-title {
+      font-family: var(--display);
+      font-size: 28px;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .drop-formats {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .file-chip {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin-top: 18px;
+      padding: 12px 16px;
+      background: white;
+      border: 1px solid var(--green);
+      border-radius: var(--r);
+      text-align: left;
+    }
+    .file-chip.visible { display: flex; }
+    .file-chip-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--green);
+      word-break: break-all;
+    }
+    .file-chip-size {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+
+    /* ══════════════════════════════════════════════
+       CONTROLS PANEL
+    ══════════════════════════════════════════════ */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 600px) {
+      .controls-grid { grid-template-columns: 1fr; }
+      .hero-intro { grid-template-columns: 1fr; }
+      .hero-divider { display: none; }
+      .hero-col { padding: 20px 0; }
+    }
+
+    .control-box {
+      background: var(--cream);
+      border: 1px solid var(--rule);
+      border-radius: var(--r);
+      padding: 18px 20px;
+    }
+
+    .control-box-title {
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Stem toggles ── */
+    .stem-toggles {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .stem-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 8px 10px;
+      border-radius: var(--r);
+      border: 1px solid var(--rule);
+      background: white;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .stem-toggle:hover { border-color: var(--ink); }
+    .stem-toggle.active {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: var(--paper);
+    }
+    .stem-toggle input { display: none; }
+
+    .stem-emoji { font-size: 16px; flex-shrink: 0; }
+    .stem-tname { font-size: 12px; font-weight: 500; }
+    .stem-check {
+      margin-left: auto;
+      width: 14px; height: 14px;
+      border: 1.5px solid var(--rule);
+      border-radius: 2px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .stem-toggle.active .stem-check {
+      border-color: var(--punch);
+      background: var(--punch);
+      color: white;
+    }
+
+    .select-all-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .link-btn {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--punch);
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .link-btn:hover { color: var(--punch-hi); }
+
+    /* ── Quality & format toggles ── */
+    .option-rows { display: flex; flex-direction: column; gap: 10px; }
+
+    .option-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .option-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .option-label { font-size: 12px; font-weight: 500; line-height: 1.4; }
+    .option-desc  { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+
+    .switch {
+      position: relative;
+      width: 38px; height: 22px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .switch input { display: none; }
+    .switch-track {
+      position: absolute; inset: 0;
+      background: var(--warm);
+      border-radius: 11px;
+      border: 1px solid var(--rule);
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .switch-thumb {
+      position: absolute;
+      left: 3px; top: 3px;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: transform 0.2s, background 0.2s;
+      cursor: pointer;
+    }
+    .switch input:checked ~ .switch-track { background: var(--ink); border-color: var(--ink); }
+    .switch input:checked ~ .switch-thumb { transform: translateX(16px); background: var(--paper); }
+
+    /* ══════════════════════════════════════════════
+       ACTION BAR
+    ══════════════════════════════════════════════ */
+    .action-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+
+    .btn-primary {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: var(--display);
+      font-size: 22px;
+      letter-spacing: 0.08em;
+      background: var(--ink);
+      color: var(--paper);
+      border: none;
+      border-radius: var(--r);
+      padding: 18px 32px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.12s;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #1a1a20;
+      transform: translateY(-1px);
+    }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .btn-primary .btn-accent { color: var(--punch); }
+
+    /* ══════════════════════════════════════════════
+       PROGRESS
+    ══════════════════════════════════════════════ */
+    #progress-section { display: none; margin-bottom: 36px; }
+    #progress-section.visible { display: block; }
+
+    .progress-card {
+      background: var(--cream);
+      border: 1px solid var(--rule);
+      border-radius: var(--r);
+      padding: 22px 24px;
+    }
+
+    .progress-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .progress-step-label {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .progress-time {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .progress-bar {
+      height: 3px;
+      background: var(--warm);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--ink);
+      width: 0%;
+      transition: width 0.6s ease;
+      border-radius: 2px;
+    }
+    .progress-fill.indeterminate {
+      width: 45% !important;
+      animation: sweep 1.6s ease-in-out infinite;
+    }
+    @keyframes sweep {
+      0%   { transform: translateX(-120%); }
+      100% { transform: translateX(300%); }
+    }
+
+    .log-console {
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: var(--r);
+      padding: 12px 16px;
+      font-size: 11px;
+      line-height: 1.8;
+      max-height: 110px;
+      overflow-y: auto;
+      opacity: 0.85;
+    }
+
+    /* ══════════════════════════════════════════════
+       ERROR
+    ══════════════════════════════════════════════ */
+    .error-card {
+      display: none;
+      background: rgba(232,56,13,.06);
+      border: 1px solid rgba(232,56,13,.3);
+      border-left: 4px solid var(--punch);
+      border-radius: var(--r);
+      padding: 16px 20px;
+      margin-bottom: 28px;
+      font-size: 12px;
+      color: var(--punch);
+      line-height: 1.7;
+    }
+    .error-card.visible { display: block; }
+
+    /* ══════════════════════════════════════════════
+       RESULTS
+    ══════════════════════════════════════════════ */
+    #results-section { display: none; margin-bottom: 60px; }
+    #results-section.visible { display: block; animation: rise 0.4s ease both; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .results-masthead {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--ink);
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .results-title-text {
+      font-family: var(--display);
+      font-size: 32px;
+      letter-spacing: 0.05em;
+    }
+
+    .btn-dl-all {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--punch);
+      color: white;
+      border: none;
+      border-radius: var(--r);
+      padding: 10px 18px;
+      cursor: pointer;
+      text-decoration: none;
+      font-family: var(--mono);
+      transition: background 0.15s;
+    }
+    .btn-dl-all:hover { background: var(--punch-hi); }
+
+    .stem-list { display: flex; flex-direction: column; gap: 2px; }
+
+    .stem-row {
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      align-items: center;
+      gap: 0;
+      border: 1px solid var(--rule);
+      border-radius: var(--r);
+      background: white;
+      overflow: hidden;
+      animation: rise 0.3s ease both;
+    }
+
+    .stem-row:nth-child(1) { animation-delay: 0.04s; }
+    .stem-row:nth-child(2) { animation-delay: 0.08s; }
+    .stem-row:nth-child(3) { animation-delay: 0.12s; }
+    .stem-row:nth-child(4) { animation-delay: 0.16s; }
+    .stem-row:nth-child(5) { animation-delay: 0.20s; }
+    .stem-row:nth-child(6) { animation-delay: 0.24s; }
+    .stem-row:nth-child(7) { animation-delay: 0.28s; }
+    .stem-row:nth-child(8) { animation-delay: 0.32s; }
+
+    .stem-row-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      font-size: 20px;
+      background: var(--cream);
+      border-right: 1px solid var(--rule);
+      padding: 14px 0;
+    }
+
+    .stem-row-info {
+      padding: 12px 16px;
+    }
+
+    .stem-row-name {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .stem-row-type {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    audio {
+      width: 100%;
+      height: 32px;
+    }
+
+    .stem-row-actions {
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+      border-left: 1px solid var(--rule);
+      height: 100%;
+    }
+
+    .btn-dl-stem {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      padding: 6px 10px;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+      font-family: var(--mono);
+    }
+    .btn-dl-stem:hover { color: var(--ink); border-color: var(--ink); }
+
+    /* ══════════════════════════════════════════════
+       FOOTER / COLOPHON
+    ══════════════════════════════════════════════ */
+    .colophon {
+      border-top: 3px solid var(--ink);
+      padding: 24px 0 0;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .colophon { grid-template-columns: 1fr; }
+    }
+
+    .colophon-col { }
+
+    .colophon-head {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .colophon-body {
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .colophon-body a {
+      color: var(--ink);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .punch { color: var(--punch); }
+  </style>
+</head>
+
+<body>
+<div class="shell">
+
+  <!-- ── MASTHEAD ─────────────────────────────────────────────────── -->
+  <header class="masthead">
+    <div class="brand">
+      <div class="brand-name">Demuze</div>
+      <div class="brand-tag">Stem Separator</div>
+    </div>
+    <div class="masthead-right">
+      <div class="status-row" id="status-row" onclick="checkHealth()" title="Click to refresh">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">checking…</span>
+      </div>
+      <div class="offline-badge">100% Offline</div>
+    </div>
+  </header>
+
+  <div class="sub-rule">
+    <span>htdemucs_6s model · 6-stem isolation · no cloud · no data sent</span>
+    <span>v2.0</span>
+  </div>
+
+  <!-- ── HERO ─────────────────────────────────────────────────────── -->
+  <div class="hero-intro">
+    <div class="hero-col">
+      <div class="hero-headline">SEPARATE<br/>ANY TRACK<br/>INTO ITS <span class="punch">STEMS.</span></div>
+      <div class="hero-body">
+        Demuze runs entirely on your machine. Upload a song, pick
+        which stems to isolate, and download studio-quality WAV or MP3 files —
+        no account, no internet, no limits.
+      </div>
+      <div class="pill-row">
+        <span class="pill hot">Vocals</span>
+        <span class="pill hot">Drums</span>
+        <span class="pill hot">Bass</span>
+        <span class="pill hot">Guitar</span>
+        <span class="pill hot">Piano</span>
+        <span class="pill hot">Other</span>
+        <span class="pill">Karaoke mix</span>
+        <span class="pill">No-drums mix</span>
+      </div>
+    </div>
+    <div class="hero-divider"></div>
+    <div class="hero-col">
+      <div class="hero-headline">WHY<br/>DEMUZE<br/>IS <span class="punch">DIFFERENT.</span></div>
+      <div class="hero-body">
+        Most stem separators are SaaS — they charge per track, upload your audio,
+        and throttle quality on free tiers. Demuze is yours: open-source, local,
+        GPU-accelerated when available, and never sends a byte to any server.
+        High-quality mode runs multiple shifted passes for cleaner separation.
+      </div>
+    </div>
+  </div>
+
+  <!-- ── UPLOAD ────────────────────────────────────────────────────── -->
+  <div class="upload-wrap">
+    <div class="section-label">01 — Drop your track</div>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".mp3,.wav,.flac,.ogg,.m4a,.aac,.opus" />
+      <span class="drop-icon">🎵</span>
+      <div class="drop-title">Drop audio here — or click to browse</div>
+      <div class="drop-formats">mp3 · wav · flac · ogg · m4a · aac · opus · max 300 MB</div>
+    </div>
+    <div class="file-chip" id="file-chip">
+      <span style="font-size:20px">📁</span>
+      <div>
+        <div class="file-chip-name" id="chip-name">—</div>
+        <div class="file-chip-size" id="chip-size">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONTROLS ───────────────────────────────────────────────────── -->
+  <div class="controls-grid">
+
+    <!-- Stem selector -->
+    <div class="control-box">
+      <div class="control-box-title">02 — Choose outputs</div>
+      <div class="stem-toggles" id="stem-toggles">
+        <!-- injected by JS -->
+      </div>
+      <div class="select-all-row">
+        <button class="link-btn" onclick="selectAll()">Select all</button>
+        <button class="link-btn" onclick="selectNone()" style="color:var(--muted)">Clear</button>
+      </div>
+    </div>
+
+    <!-- Quality & format -->
+    <div class="control-box">
+      <div class="control-box-title">03 — Quality &amp; format</div>
+      <div class="option-rows">
+
+        <div class="option-row">
+          <div>
+            <div class="option-label">High Quality Mode</div>
+            <div class="option-desc">5× shifted predictions averaged → significantly cleaner separation. 3–5× slower.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="hq-toggle" />
+            <span class="switch-track"></span>
+            <span class="switch-thumb"></span>
+          </label>
+        </div>
+
+        <div class="option-row">
+          <div>
+            <div class="option-label">Noise Gate</div>
+            <div class="option-desc">Reduce stem bleed artifacts with FFmpeg afftdn filter. Recommended on.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="gate-toggle" checked />
+            <span class="switch-track"></span>
+            <span class="switch-thumb"></span>
+          </label>
+        </div>
+
+        <div class="option-row">
+          <div>
+            <div class="option-label">Export as MP3</div>
+            <div class="option-desc">VBR ~190 kbps. Smaller files. Default is lossless WAV.</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="mp3-toggle" />
+            <span class="switch-track"></span>
+            <span class="switch-thumb"></span>
+          </label>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ACTION ────────────────────────────────────────────────────── -->
+  <div class="action-bar">
+    <button class="btn-primary" id="btn-go" disabled onclick="startSeparation()">
+      <span class="btn-accent">⚡</span> Separate Stems
+    </button>
+  </div>
+
+  <!-- ── PROGRESS ───────────────────────────────────────────────────── -->
+  <div id="progress-section">
+    <div class="section-label">Processing</div>
+    <div class="progress-card">
+      <div class="progress-top">
+        <div class="progress-step-label" id="step-label">Uploading…</div>
+        <div class="progress-time" id="elapsed-time">0s</div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill indeterminate" id="prog-fill"></div>
+      </div>
+      <div class="log-console" id="log-console"></div>
+    </div>
+  </div>
+
+  <!-- ── ERROR ─────────────────────────────────────────────────────── -->
+  <div class="error-card" id="error-card"></div>
+
+  <!-- ── RESULTS ───────────────────────────────────────────────────── -->
+  <div id="results-section">
+    <div class="results-masthead">
+      <div class="results-title-text">STEMS READY</div>
+      <button class="btn-dl-all" id="btn-dl-all" onclick="downloadZip()">
+        ↓ Download All (.zip)
+      </button>
+    </div>
+    <div class="stem-list" id="stem-list"></div>
+  </div>
+
+  <!-- ── COLOPHON ──────────────────────────────────────────────────── -->
+  <footer class="colophon">
+    <div class="colophon-col">
+      <div class="colophon-head">About</div>
+      <div class="colophon-body">
+        Demuze is a 100% offline, open-source audio stem separator.
+        Built on <a href="https://github.com/facebookresearch/demucs">Demucs htdemucs_6s</a>
+        by Meta Research. Your audio never leaves your machine.
+      </div>
+    </div>
+    <div class="colophon-col">
+      <div class="colophon-head">Legal</div>
+      <div class="colophon-body">
+        MIT License. FFmpeg is used as an external system tool (LGPL).
+        Demucs is MIT. See <a href="/static/LEGAL.md">LEGAL.md</a> for full details.
+        No FFmpeg binaries are bundled with this software.
+      </div>
+    </div>
+    <div class="colophon-col">
+      <div class="colophon-head">Support</div>
+      <div class="colophon-body">
+        Free &amp; open source forever. If Demuze saves you time,
+        consider supporting development via
+        <a href="https://ko-fi.com" target="_blank">Ko-fi</a> or
+        <a href="https://github.com/sponsors" target="_blank">GitHub Sponsors</a>.
+      </div>
+    </div>
+  </footer>
+
+</div><!-- /shell -->
+
+<script>
+/* ════════════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════════════ */
+const API = '';  // same origin
+
+const STEM_META = {
+  // Pure isolations
+  drums:    { emoji: '🥁', label: 'Drums',     desc: 'Isolated percussion' },
+  bass:     { emoji: '🎸', label: 'Bass',      desc: 'Isolated bass line' },
+  guitar:   { emoji: '🎵', label: 'Guitar',    desc: 'Isolated guitar' },
+  piano:    { emoji: '🎹', label: 'Piano',     desc: 'Isolated piano / keys' },
+  vocals:   { emoji: '🎤', label: 'Vocals',    desc: 'Isolated voice(s)' },
+  other:    { emoji: '🎶', label: 'Other',     desc: 'Remaining instruments' },
+  // Composites
+  no_drums: { emoji: '🔇', label: 'No Drums',  desc: 'Full mix — drums removed' },
+  karaoke:  { emoji: '🎙️', label: 'Karaoke',   desc: 'Instrumental — no vocals' },
+};
+
+const STEM_ORDER = ['vocals','drums','bass','guitar','piano','other','karaoke','no_drums'];
+
+/* ════════════════════════════════════════════════
+   STATE
+════════════════════════════════════════════════ */
+let selectedFile = null;
+let currentJobId = null;
+let elapsedInterval = null;
+let elapsedSec = 0;
+
+/* ════════════════════════════════════════════════
+   INIT
+════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  buildStemToggles();
+  checkHealth();
+  wireDropZone();
+});
+
+/* ════════════════════════════════════════════════
+   STEM TOGGLES
+════════════════════════════════════════════════ */
+function buildStemToggles() {
+  const grid = document.getElementById('stem-toggles');
+  grid.innerHTML = '';
+  for (const key of STEM_ORDER) {
+    const m = STEM_META[key];
+    const btn = document.createElement('label');
+    btn.className = 'stem-toggle active';
+    btn.dataset.key = key;
+    btn.innerHTML = `
+      <input type="checkbox" checked data-stem="${key}" />
+      <span class="stem-emoji">${m.emoji}</span>
+      <span class="stem-tname">${m.label}</span>
+      <span class="stem-check">✓</span>
+    `;
+    btn.addEventListener('click', e => {
+      e.preventDefault();
+      toggleStem(key, btn);
+    });
+    grid.appendChild(btn);
+  }
+}
+
+function toggleStem(key, btn) {
+  const cb = btn.querySelector('input');
+  cb.checked = !cb.checked;
+  btn.classList.toggle('active', cb.checked);
+}
+
+function selectAll()  { document.querySelectorAll('.stem-toggle').forEach(b => { b.querySelector('input').checked = true;  b.classList.add('active'); }); }
+function selectNone() { document.querySelectorAll('.stem-toggle').forEach(b => { b.querySelector('input').checked = false; b.classList.remove('active'); }); }
+
+function getSelectedStems() {
+  return [...document.querySelectorAll('.stem-toggle input:checked')].map(i => i.dataset.stem);
+}
+
+/* ════════════════════════════════════════════════
+   HEALTH CHECK
+════════════════════════════════════════════════ */
+async function checkHealth() {
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  try {
+    const r = await fetch(`${API}/health`);
+    const d = await r.json();
+    if (d.status === 'ok') {
+      dot.className  = 'status-dot ok';
+      text.textContent = 'All systems ready';
+    } else {
+      dot.className  = 'status-dot fail';
+      text.textContent = d.issues[0]?.slice(0, 50) || 'Degraded';
+    }
+  } catch {
+    dot.className  = 'status-dot fail';
+    text.textContent = 'Backend offline';
+  }
+}
+
+/* ════════════════════════════════════════════════
+   DROP ZONE
+════════════════════════════════════════════════ */
+function wireDropZone() {
+  const zone  = document.getElementById('drop-zone');
+  const input = document.getElementById('file-input');
+  input.addEventListener('change', () => handleFile(input.files[0]));
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    handleFile(e.dataTransfer.files[0]);
+  });
+}
+
+function handleFile(file) {
+  if (!file) return;
+  selectedFile = file;
+
+  document.getElementById('drop-zone').classList.add('has-file');
+  const chip = document.getElementById('file-chip');
+  chip.classList.add('visible');
+  document.getElementById('chip-name').textContent = file.name;
+  document.getElementById('chip-size').textContent = fmtSize(file.size);
+  document.getElementById('btn-go').disabled = false;
+
+  // Clear previous results
+  document.getElementById('results-section').classList.remove('visible');
+  document.getElementById('error-card').classList.remove('visible');
+}
+
+function fmtSize(b) {
+  if (b < 1024)       return `${b} B`;
+  if (b < 1048576)    return `${(b/1024).toFixed(1)} KB`;
+  return `${(b/1048576).toFixed(1)} MB`;
+}
+
+/* ════════════════════════════════════════════════
+   SEPARATION
+════════════════════════════════════════════════ */
+async function startSeparation() {
+  if (!selectedFile) return;
+
+  const selected = getSelectedStems();
+  if (!selected.length) {
+    showError('Please select at least one stem to generate.');
+    return;
+  }
+
+  // UI state
+  document.getElementById('btn-go').disabled = true;
+  document.getElementById('error-card').classList.remove('visible');
+  document.getElementById('results-section').classList.remove('visible');
+  document.getElementById('progress-section').classList.add('visible');
+
+  // Elapsed timer
+  elapsedSec = 0;
+  clearInterval(elapsedInterval);
+  elapsedInterval = setInterval(() => {
+    elapsedSec++;
+    document.getElementById('elapsed-time').textContent = fmtTime(elapsedSec);
+  }, 1000);
+
+  setStep('Uploading…');
+  log(`File: ${selectedFile.name} (${fmtSize(selectedFile.size)})`);
+  log(`Outputs requested: ${selected.join(', ')}`);
+
+  const hq   = document.getElementById('hq-toggle').checked;
+  const mp3  = document.getElementById('mp3-toggle').checked;
+  const gate = document.getElementById('gate-toggle').checked;
+
+  if (hq) log('High Quality mode enabled (--shifts 5 --overlap 0.5) — expect 3–5× longer processing');
+
+  const form = new FormData();
+  form.append('file', selectedFile);
+
+  const params = new URLSearchParams({
+    outputs:      selected.join(','),
+    export_mp3:   mp3,
+    high_quality: hq,
+    noise_gate:   gate,
+  });
+
+  setStep('Running Demucs — please wait…');
+  log('Separation in progress. This may take 1–15 min depending on your hardware.');
+
+  try {
+    const res = await fetch(`${API}/separate?${params}`, { method: 'POST', body: form });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    currentJobId = data.job_id;
+
+    clearInterval(elapsedInterval);
+    setStep('Done ✓');
+    log(`Job ID: ${data.job_id}`);
+    log(`Format: ${data.export_format.toUpperCase()}`);
+    log(`Noise gate: ${data.noise_gate}`);
+
+    const fill = document.getElementById('prog-fill');
+    fill.classList.remove('indeterminate');
+    fill.style.width = '100%';
+
+    renderResults(data.outputs, data.original_stem, data.export_format);
+  } catch (err) {
+    clearInterval(elapsedInterval);
+    setStep('Failed ✗');
+    const fill = document.getElementById('prog-fill');
+    fill.classList.remove('indeterminate');
+    fill.style.width = '0';
+    showError(err.message);
+    log(`ERROR: ${err.message}`);
+    document.getElementById('btn-go').disabled = false;
+  }
+}
+
+function setStep(msg)   { document.getElementById('step-label').textContent = msg; }
+function showError(msg) {
+  const el = document.getElementById('error-card');
+  el.innerHTML = `<strong>Error:</strong> ${msg}`;
+  el.classList.add('visible');
+}
+function log(msg) {
+  const el = document.getElementById('log-console');
+  el.textContent += `[${ts()}] ${msg}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+function ts() {
+  return new Date().toLocaleTimeString('en-GB', { hour12: false });
+}
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  return m ? `${m}m ${s % 60}s` : `${s}s`;
+}
+
+/* ════════════════════════════════════════════════
+   RESULTS
+════════════════════════════════════════════════ */
+function renderResults(outputs, originalStem, fmt) {
+  const list = document.getElementById('stem-list');
+  list.innerHTML = '';
+
+  for (const key of STEM_ORDER) {
+    const url = outputs[key];
+    if (!url) continue;
+    const m = STEM_META[key];
+    const filename = `${originalStem}_${key}_isolated.${fmt}`;
+
+    const row = document.createElement('div');
+    row.className = 'stem-row';
+    row.innerHTML = `
+      <div class="stem-row-icon">${m.emoji}</div>
+      <div class="stem-row-info">
+        <div class="stem-row-name">${m.label}</div>
+        <div class="stem-row-type">${m.desc}</div>
+        <audio controls src="${url}" preload="none"></audio>
+      </div>
+      <div class="stem-row-actions">
+        <a class="btn-dl-stem" href="${url}" download="${filename}">
+          ↓ ${fmt.toUpperCase()}
+        </a>
+      </div>
+    `;
+    list.appendChild(row);
+  }
+
+  document.getElementById('results-section').classList.add('visible');
+}
+
+/* ════════════════════════════════════════════════
+   ZIP DOWNLOAD
+════════════════════════════════════════════════ */
+function downloadZip() {
+  if (!currentJobId) return;
+  window.location.href = `${API}/download-zip/${currentJobId}`;
+}
+</script>
+</body>
+</html>
