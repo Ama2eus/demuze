@@ -402,6 +402,18 @@ Third-party licenses are not replaced by the Demuze MIT License.
 
 ---
 
+## Legal Use
+
+Demuze is a local audio processing tool.
+
+Users are solely responsible for ensuring they have the right
+to process, separate, and distribute any audio file they use
+with this software.
+
+Separating or distributing copyrighted audio without the
+rights holder's permission may violate copyright law in your
+jurisdiction. Demuze does not condone copyright infringement.
+
 ## Project Structure
 
 ```text

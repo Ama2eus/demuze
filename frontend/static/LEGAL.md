@@ -39,3 +39,11 @@ Installed as Python packages. **BSD License.**
 **MIT License** — see LICENSE file.
 FFmpeg's LGPL does not encumber Demuze because FFmpeg is an external process,
 not linked or embedded. Distributors: do not bundle FFmpeg binaries.
+
+
+## User Responsibility
+
+This software processes audio files provided by the user.
+The developers of Demuze make no representation about the
+legality of processing any particular audio file. Users are
+responsible for compliance with applicable copyright law.
