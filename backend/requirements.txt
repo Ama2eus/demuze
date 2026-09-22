@@ -1,38 +1,45 @@
-# ── Demuze backend dependencies ───────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# DEMUZE — Backend dependencies
+# ─────────────────────────────────────────────────────────────────────────────
 #
-# ⚠  CRITICAL VERSION PINS — DO NOT CHANGE TORCH/TORCHAUDIO VERSIONS
+# ⚠  DO NOT run `pip install -r requirements.txt` directly.
+#    Use the installer which enforces install order and RAM safety:
+#      ./install_and_run.sh            (macOS / Linux)
+#      .\install_and_run.ps1           (Windows)
+#      ./install_and_run.sh --reset    fresh install (wipes .venv)
 #
-#    torchaudio 2.3+ routes ALL audio saving through torchcodec,
-#    which is not installed with demucs. This causes the error:
-#      "ImportError: TorchCodec is required for save_with_torchcodec"
+#    The installer installs packages in this exact order:
+#      numpy<2 → torch → torchaudio → fastapi → soundfile → demucs → numpy<2
+#    Order matters: numpy must be pinned before torch, and re-pinned after demucs.
 #
-#    torchaudio 2.2.2 is the LAST version that uses soundfile for saving.
-#    torch 2.2.2 is the EXACT matching companion version.
-#    These pins are mandatory for Demuze to work correctly.
+#    Manual install (if you know what you're doing):
+#      pip install "numpy>=1.24,<2"
+#      pip install torch==2.2.2 torchaudio==2.2.2 \
+#          --index-url https://download.pytorch.org/whl/cpu
+#      pip install fastapi "uvicorn[standard]" python-multipart soundfile
+#      pip install demucs
+#      pip install "numpy>=1.24,<2"   # re-enforce after demucs
 #
-# ⚠  DO NOT install this file directly with bare `pip install -r requirements.txt`
-#    Use the installer which enforces correct versions and RAM-safe install:
-#      ./install_and_run.sh        (macOS / Linux)
-#      .\install_and_run.ps1       (Windows)
-#
-# Manual install (if you know what you're doing):
-#   pip install --no-cache-dir torch==2.2.2 torchaudio==2.2.2 \
-#       --index-url https://download.pytorch.org/whl/cpu
-#   pip install --no-cache-dir fastapi "uvicorn[standard]" python-multipart soundfile demucs
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Web framework
+# Web backend
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9
 
-# Audio I/O — soundfile used by torchaudio 2.2.x as the safe save backend
+# torchaudio save backend (must be present for torchaudio 2.2.x to save audio)
 soundfile>=0.12.1
 
-# PyTorch PINNED — torchaudio 2.3+ breaks without torchcodec (not in demucs deps)
-# These exact versions are installed by the installer scripts.
+# ML stack — CRITICAL: DO NOT UPGRADE without testing
+# torchaudio 2.3+ routes .save() through torchcodec (not installed → crash)
+# torchaudio 2.2.2 is the last version using soundfile backend (safe)
+# pip shows these as "2.2.2+cpu" on Linux — that is correct and expected
 torch==2.2.2
 torchaudio==2.2.2
 
-# Demucs stem separator
+# Audio separation engine
 demucs>=4.0.1
+
+# Compatibility guard — torch 2.2.x was compiled against NumPy 1.x C-ABI
+# NumPy 2.x breaks torch import with "_ARRAY_API not found"
+numpy<2
