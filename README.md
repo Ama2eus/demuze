@@ -37,6 +37,8 @@ Once the software and model have been installed, Demuze can be used without an i
 
 The idea is simple: **keep the audio on your machine and give the user control over the processing.**
 
+## Screenshot
+
 ![Demuze main interface](docs/screenshots/ui-main.png)
 ![Demuze results view](docs/screenshots/ui-results.png)
 
@@ -404,24 +406,25 @@ Third-party licenses are not replaced by the Demuze MIT License.
 
 ```text
 demuze/
-├── backend/
+├── backend
 │   ├── main.py
 │   └── requirements.txt
-│
-├── frontend/
-│   └── index.html
-│    └── static
-│     └── style.css
-│
-├── outputs/
-├── temp/
-│
-├── install_and_run.sh
+├── docs
+│   └── screenshots
+│       ├── Old-UI.png
+│       ├── ui-main.png
+│       └── ui-results.png
+├── frontend
+│   ├── index.html
+│   └── static
+│       ├── LEGAL.md
+│       └── style.css
 ├── install_and_run.ps1
-│
-├── LEGAL.md
+├── install_and_run.sh
+├── installer
 ├── LICENSE
-└── README.md
+├── README.md
+├── reset_and_reinstall.sh
 ```
 
 `outputs/` and `temp/` are created as needed by the application.
