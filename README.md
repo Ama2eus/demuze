@@ -37,6 +37,9 @@ Once the software and model have been installed, Demuze can be used without an i
 
 The idea is simple: **keep the audio on your machine and give the user control over the processing.**
 
+![Demuze main interface](docs/screenshots/ui-main.png)
+![Demuze results view](docs/screenshots/ui-results.png)
+
 ---
 
 ## Features
